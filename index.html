@@ -1,35 +1,32 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>استعراض الساعة بالواقع المعزز</title>
-    <!-- استدعاء أداة جوجل الرسمية لعرض المجسمات والواقع المعزز -->
-    <script type="module" src="https://googleapis.com"></script>
+    <title>تجربة الساعة بالواقع المعزز</title>
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background: #ececec; font-family: sans-serif; }
-        model-viewer { width: 100%; height: 100%; }
-        .ar-button { background-color: #007bff; border-radius: 4px; border: none; color: white; padding: 12px 24px; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 16px; font-weight: bold; cursor: pointer; z-index: 999; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; flex-direction: column; justify-content: center; align-items: center; background: #1a1a1a; font-family: sans-serif; color: white; }
+        .container { text-align: center; padding: 20px; }
+        h1 { font-size: 24px; margin-bottom: 10px; color: #f5f5f7; }
+        p { font-size: 16px; color: #86868b; margin-bottom: 30px; }
+        
+        /* تصميم زر خارجي قوي ومباشر يجبر النظام على الاستجابة */
+        .ar-link { display: inline-block; background: linear-gradient(135deg, #0071e3, #00c6ff); color: white; text-decoration: none; padding: 16px 32px; font-size: 18px; font-weight: bold; border-radius: 30px; box-shadow: 0 10px 20px rgba(0,113,227,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .ar-link:active { transform: scale(0.95); box-shadow: 0 5px 10px rgba(0,113,227,0.2); }
     </style>
 </head>
 <body>
 
-    <!-- عرض الساعة ثلاثية الأبعاد مع خيار فتح الواقع المعزز AR -->
-    <model-viewer 
-        src="watch.glb" 
-        ar 
-        ar-modes="webxr scene-viewer quick-look" 
-        camera-controls 
-        touch-action="pan-y" 
-        autoplay 
-        shadow-intensity="1" 
-        alt="ساعة ثلاثية الأبعاد">
+    <div class="container">
+        <h1>تجربة الساعة الافتراضية</h1>
+        <p>اضغط على الزر بالأسفل لفتح كاميرا الجوال وتجربة الساعة على يدك مباشرة</p>
         
-        <button slot="ar-button" class="ar-button">
-            اضغط لتجربة الساعة على يدك ⌚
-        </button>
-        
-    </model-viewer>
+        <!-- هذا الرابط يوجه مباشرة إلى مستعرض الواقع المعزز الرسمي في نظام تشغيل هاتفك -->
+        <a class="ar-link" href="intent://://google.com">
+            اضغط هنا لتجربة الساعة ⌚
+        </a>
+    </div>
 
 </body>
 </html>
+  
