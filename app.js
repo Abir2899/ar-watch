@@ -5,7 +5,7 @@ const videoHeight = 480;
 async function setupCamera() {
     video = document.getElementById('webcam');
     const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode:{ exact: "environment"}, width: videoWidth, height: videoHeight },
+        video: { facingMode: "environment", width: videoWidth, height: videoHeight },
         audio: false
     });
     video.srcObject = stream;
