@@ -1,18 +1,7 @@
-let video, model, scene, camera, renderer, watchModel;
+
+let scene, camera, renderer, watchModel, videoElement;
 const videoWidth = 640;
 const videoHeight = 480;
-
-async function setupCamera() {
-    video = document.getElementById('webcam');
-    const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "environment", width: videoWidth, height: videoHeight },
-        audio: false
-    });
-    video.srcObject = stream;
-    return new Promise((resolve) => {
-        video.onloadedmetadata = () => { resolve(video); };
-    });
-}
 
 function init3D() {
     const canvas = document.getElementById('canvas3d');
@@ -22,55 +11,71 @@ function init3D() {
     renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
 
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    // إضاءة استوديو كاملة وواقعية لإبراز تفاصيل وألوان الساعة
+    const ambientLight = new THREE.AmbientLight(0xffffff, 2.0);
     scene.add(ambientLight);
-    const dirLight = new THREE.DirectionalLight(0xffffff, 2);
+    const dirLight = new THREE.DirectionalLight(0xffffff, 2.5);
     dirLight.position.set(0, 10, 5);
     scene.add(dirLight);
 
     const loader = new THREE.GLTFLoader();
     loader.load('watch.glb', (gltf) => {
         watchModel = gltf.scene;
-        watchModel.scale.set(0.1, 0.1, 0.1); // تصغير الحجم الافتراضي لتجنب اختفائها
+        // حجم متناسق وتعديل الدوران لتكون الساعة مستوية على المعصم
+        watchModel.scale.set(0.7, 0.7, 0.7); 
+        watchModel.rotation.set(Math.PI / 2, 0, 0); 
         watchModel.visible = false;
         scene.add(watchModel);
         document.getElementById('loading').style.display = 'none';
     }, undefined, (error) => {
-        console.error("خطأ في تحميل ملف الساعة:", error);
+        console.error("خطأ في تحميل مجسم الساعة:", error);
     });
 }
 
-async function trackHand() {
-    if (model) {
-        const predictions = await model.estimateHands(video);
-        if (predictions.length > 0 && watchModel) {
-            const wrist = predictions[0].landmarks[0]; // النقطة صفر هي المعصم
-            
-            // تحويل إحداثيات الكاميرا إلى فضاء ثلاثي الأبعاد بشكل صحيح
-            const x = (wrist[0] / videoWidth) * 2 - 1;
-            const y = -(wrist[1] / videoHeight) * 2 + 1;
-            
-            watchModel.position.set(x * 5, y * 5, -10);
-            watchModel.visible = true;
-        } else if (watchModel) {
-            watchModel.visible = false;
-        }
+function onResults(results) {
+    if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0 && watchModel) {
+        // النقطة 0 في ميديا بايب هي نقطة المعصم الدقيقة (Wrist)
+        const wrist = results.multiHandLandmarks[0][0]; 
+        
+        // معادلة تحويل متطورة ومجربة لإحداثيات الشاشة إلى فضاء ثلاثي الأبعاد
+        const x = (wrist.x * 2 - 1) * 3.5;
+        const y = -(wrist.y * 2 - 1) * 2.5;
+        
+        watchModel.position.set(x, y, -6);
+        watchModel.visible = true;
+    } else if (watchModel) {
+        watchModel.visible = false; // إخفاء الساعة عند غياب اليد
     }
     renderer.render(scene, camera);
-    requestAnimationFrame(trackHand);
 }
 
 async function main() {
-    try {
-        await setupCamera();
-        video.play();
-        init3D();
-        model = await handpose.load();
-        trackHand();
-    } catch (e) {
-        document.getElementById('loading').innerText = "حدث خطأ: تأكد من تفعيل الكاميرا واسم ملف الساعة";
-        console.error(e);
-    }
+    videoElement = document.getElementById('webcam');
+    init3D();
+
+    // إعداد حزمة MediaPipe الذكية لقراءة اليد
+    const hands = new Hands({
+        locateFile: (file) => https://jsdelivr.net{file}
+    });
+    
+    hands.setOptions({
+        maxNumHands: 1,
+        modelComplexity: 1,
+        minDetectionConfidence: 0.5,
+        minTrackingConfidence: 0.5
+    });
+    hands.onResults(onResults);
+
+    // تشغيل الكاميرا الخلفية تلقائياً
+    const cameraUtils = new Camera(videoElement, {
+        onFrame: async () => {
+            await hands.send({ image: videoElement });
+        },
+        width: videoWidth,
+        height: videoHeight,
+        facingMode: "environment"
+    });
+    cameraUtils.start();
 }
 
 main();
