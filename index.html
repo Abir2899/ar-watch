@@ -65,6 +65,11 @@ button {
 <body>
 <h2>جربي ساعتك ثلاثية الأبعاد</h2>
 <p id="status">اضغطي لتشغيل الكاميرا</p>
+  <script>
+document.getElementById("start").addEventListener("click", function() {
+  alert("الزر يعمل بنجاح!");
+});
+</script>
 <div id="stage">
   <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
