@@ -3,14 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>تجربة الساعة بالواقع المعزز</title>
-
+<title>تجربة الساعة ثلاثية الأبعاد</title>
 <style>
 body {
   margin: 0;
   background: #111;
   color: white;
-  font-family: Arial;
+  font-family: Arial, sans-serif;
   text-align: center;
 }
 
@@ -49,60 +48,75 @@ button {
   font-size: 17px;
   cursor: pointer;
 }
+
+#status {
+  color: #c9a66b;
+  padding: 10px;
+}
 </style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+  }
+}
+</script>
 </head>
-
 <body>
-
 <h2>جربي ساعتك ثلاثية الأبعاد</h2>
-
-<button id="start">تشغيل الكاميرا</button>
-
+<p id="status">اضغطي لتشغيل الكاميرا</p>
 <div id="stage">
-  <video id="video" autoplay playsinline></video>
+  <video id="video" autoplay playsinline muted></video>
   <canvas id="canvas"></canvas>
 </div>
-
 <script type="module">
 
-import * as THREE from
-'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js';
+import * as THREE from "three";
 
 import { GLTFLoader } from
-'https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js';
+"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/loaders/GLTFLoader.js";
 
 import {
   FilesetResolver,
   HandLandmarker
 } from
-'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+"https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm";
 
 const video = document.getElementById("video");
 const canvas = document.getElementById("canvas");
 const button = document.getElementById("start");
+const status = document.getElementById("status");
 
-let renderer, scene, camera, watch, handTracker;
+let renderer;
+let scene;
+let camera;
+let watch;
+let handTracker;
+let busy = false;
 
-button.onclick = startCamera;
+button.addEventListener("click", startCamera);
 
 async function startCamera() {
+
+  if (busy) return;
+
+  busy = true;
+  button.disabled = true;
+  status.textContent = "جاري تشغيل الكاميرا...";
 
   try {
 
     const stream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
       video: { facingMode: "user" }
     });
 
     video.srcObject = stream;
-
-    await new Promise(resolve => {
-      video.onloadedmetadata = resolve;
-    });
-
     await video.play();
 
     const width = video.videoWidth;
     const height = video.videoHeight;
+    const aspect = width / height;
 
     canvas.width = width;
     canvas.height = height;
@@ -110,12 +124,7 @@ async function startCamera() {
     scene = new THREE.Scene();
 
     camera = new THREE.OrthographicCamera(
-      -width / height,
-      width / height,
-      1,
-      -1,
-      0.1,
-      100
+      -aspect, aspect, 1, -1, 0.1, 100
     );
 
     camera.position.z = 5;
@@ -126,18 +135,27 @@ async function startCamera() {
       antialias: true
     });
 
-    renderer.setSize(width, height);
-    renderer.setClearColor(0x000000, 0);
+    renderer.setSize(width, height, false);
 
     scene.add(new THREE.AmbientLight(0xffffff, 2));
 
+    status.textContent = "جاري تحميل الساعة...";
+
     const loader = new GLTFLoader();
 
-    loader.load("./watch.glb", (gltf) => {
-      watch = gltf.scene;
-      scene.add(watch);
-      watch.visible = false;
+    watch = await new Promise((resolve, reject) => {
+      loader.load(
+        "./watch.glb",
+        gltf => resolve(gltf.scene),
+        undefined,
+        error => reject(error)
+      );
     });
+
+    scene.add(watch);
+    watch.visible = false;
+
+    status.textContent = "جاري تشغيل تتبع اليد...";
 
     const vision = await FilesetResolver.forVisionTasks(
       "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm"
@@ -149,19 +167,28 @@ async function startCamera() {
         baseOptions: {
           modelAssetPath:
           "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
-          delegate: "GPU"
+          delegate: "CPU"
         },
         runningMode: "VIDEO",
         numHands: 1
       }
     );
 
+    status.textContent = "حركي يدك أمام الكاميرا!";
+
     button.style.display = "none";
 
     detectHand();
 
   } catch (error) {
-    alert("تعذر تشغيل الكاميرا: " + error.message);
+
+    console.error(error);
+
+    status.textContent = "حدث خطأ: " + error.message;
+
+    button.disabled = false;
+    busy = false;
+
   }
 }
 
@@ -174,7 +201,7 @@ function detectHand() {
     performance.now()
   );
 
-  if (results.landmarks.length > 0 && watch) {
+  if (results.landmarks.length > 0) {
 
     const points = results.landmarks[0];
 
@@ -185,7 +212,9 @@ function detectHand() {
     const x = 1 - wrist.x;
     const y = wrist.y;
 
-    const worldX = (x - 0.5) * 2 * (video.videoWidth / video.videoHeight);
+    const aspect = video.videoWidth / video.videoHeight;
+
+    const worldX = (x - 0.5) * 2 * aspect;
     const worldY = (0.5 - y) * 2;
 
     watch.position.set(worldX, worldY, 0);
@@ -204,8 +233,10 @@ function detectHand() {
 
     watch.visible = true;
 
-  } else if (watch) {
+  } else {
+
     watch.visible = false;
+
   }
 
   renderer.render(scene, camera);
@@ -214,6 +245,5 @@ function detectHand() {
 }
 
 </script>
-
 </body>
 </html>
